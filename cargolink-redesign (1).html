@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CargoLink — Simulação de Transporte</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #111827;
+  --ink2:      #374151;
+  --smoke:     #6b7280;
+  --mist:      #9ca3af;
+  --border:    #e5e7eb;
+  --frost:     #f3f5f9;
+  --white:     #ffffff;
+  --page:      #f7f8fc;
+  --blue:      #1a4fd6;
+  --blue-d:    #1340b8;
+  --blue-pale: #eef2fd;
+  --blue-ring: rgba(26,79,214,0.15);
+  --green:     #059669;
+  --green-pale:#ecfdf5;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow:    0 4px 20px rgba(0,0,0,0.08);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Montserrat',sans-serif;background:var(--page);color:var(--ink);overflow-x:hidden;}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  height:56px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  background:rgba(255,255,255,0.95);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;}
+.logo-mark{width:28px;height:28px;background:var(--blue);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-mark svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+.logo-text{font-size:15px;font-weight:800;color:var(--ink);}
+.logo-text span{color:var(--blue);}
+.nav-desktop{display:none;}
+.nav-cta-desktop{display:none !important;}
+
+/* Hamburger */
+.hamburger{background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:5px;z-index:300;}
+.hamburger span{display:block;width:22px;height:2px;background:var(--ink);border-radius:2px;transition:all .25s;}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0);}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+
+/* Mobile menu overlay */
+.mob-menu{
+  display:none;position:fixed;top:56px;left:0;right:0;bottom:0;
+  background:rgba(255,255,255,0.98);backdrop-filter:blur(20px);
+  z-index:190;flex-direction:column;padding:24px 20px 32px;
+  overflow-y:auto;
+}
+.mob-menu.open{display:flex;}
+.mob-menu nav-links-mob{display:flex;flex-direction:column;gap:0;width:100%;}
+.mob-menu a{
+  font-size:20px;font-weight:700;color:var(--ink);text-decoration:none;
+  padding:18px 0;border-bottom:1px solid var(--border);display:block;
+}
+.mob-menu a:last-of-type{border-bottom:none;}
+.mob-cta-btn{
+  margin-top:24px;width:100%;height:56px;background:var(--blue);border:none;
+  border-radius:14px;font-family:'Montserrat',sans-serif;font-size:16px;
+  font-weight:700;color:#fff;cursor:pointer;
+}
+
+/* ── HERO / SIMULATOR ── */
+.sim-hero{
+  min-height:100vh;padding:80px 16px 48px;
+  display:flex;align-items:flex-start;justify-content:center;
+  background:linear-gradient(160deg,#eef2ff 0%,#f7f8fc 55%,#ecfdf5 100%);
+  position:relative;overflow:hidden;
+}
+.sim-hero::before{content:'';position:absolute;top:-100px;right:-100px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(26,79,214,0.09) 0%,transparent 70%);pointer-events:none;}
+.sim-hero::after{content:'';position:absolute;bottom:-80px;left:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(5,150,105,0.07) 0%,transparent 70%);pointer-events:none;}
+.sim-hero-inner{position:relative;z-index:1;width:100%;max-width:980px;}
+
+.sim-eyebrow{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--blue);background:var(--blue-pale);border:1px solid rgba(26,79,214,0.18);
+  border-radius:50px;padding:5px 12px;margin-bottom:16px;
+}
+.eyedot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pg 2s ease-in-out infinite;flex-shrink:0;}
+@keyframes pg{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,0.4)}50%{box-shadow:0 0 0 6px rgba(5,150,105,0)}}
+
+h1.hero-h{
+  font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1.1;
+  color:var(--ink);margin-bottom:10px;
+}
+h1.hero-h .accent{color:var(--blue);}
+.hero-sub{font-size:14px;color:var(--smoke);line-height:1.7;margin-bottom:28px;}
+
+/* ── SIMULATOR CARD ── */
+.sim-card{
+  background:var(--white);border-radius:20px;
+  border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(0,0,0,0.04),0 16px 48px rgba(26,79,214,0.09);
+  overflow:hidden;width:100%;
+}
+.sim-card-bar{
+  background:var(--frost);border-bottom:1px solid var(--border);
+  padding:12px 18px;display:flex;align-items:center;justify-content:space-between;
+}
+.bar-dots{display:flex;gap:5px;}
+.bar-dots span{width:9px;height:9px;border-radius:50%;}
+.bar-dots span:nth-child(1){background:#ff5f57;}
+.bar-dots span:nth-child(2){background:#febc2e;}
+.bar-dots span:nth-child(3){background:#28c840;}
+.bar-title{font-size:10px;font-weight:600;color:var(--smoke);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.bar-live{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-weight:600;}
+.bar-live::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);animation:pg 2s ease-in-out infinite;}
+
+/* Single column on mobile */
+.sim-body{display:flex;flex-direction:column;}
+
+.sim-inputs{padding:20px 16px;display:flex;flex-direction:column;gap:18px;border-bottom:1px solid var(--border);overflow:hidden;}
+
+/* Service chips */
+.svc-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;}
+.svc-chip{
+  border:1.5px solid var(--border);background:var(--frost);
+  border-radius:12px;padding:12px 6px;text-align:center;
+  cursor:pointer;transition:all .18s;user-select:none;
+}
+.svc-chip.active{border-color:var(--blue);background:var(--blue-pale);box-shadow:0 0 0 3px var(--blue-ring);}
+.svc-chip-icon{font-size:20px;margin-bottom:4px;}
+.svc-chip-name{font-size:11px;font-weight:600;color:var(--smoke);}
+.svc-chip.active .svc-chip-name{color:var(--blue);}
+
+/* Fields */
+.fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mist);margin-bottom:6px;display:block;}
+.fi{
+  width:100%;height:46px;padding:0 14px;
+  background:var(--frost);border:1.5px solid var(--border);
+  border-radius:11px;color:var(--ink);
+  font-family:'Montserrat',sans-serif;font-size:15px;font-weight:500;
+  outline:none;transition:all .18s;-webkit-appearance:none;max-width:100%;
+}
+.fi::placeholder{color:var(--mist);font-weight:400;}
+.fi:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 3px var(--blue-ring);}
+select.fi{cursor:pointer;}
+select.fi option{background:#fff;}
+textarea.fi{height:auto;min-height:72px;padding:12px 14px;resize:none;line-height:1.5;font-size:14px;}
+.f2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+
+/* KM */
+.km-big{font-size:48px;font-weight:800;letter-spacing:-2px;color:var(--ink);line-height:1;margin-bottom:12px;}
+.km-big span{font-size:18px;font-weight:500;color:var(--smoke);margin-left:3px;}
+.km-track{
+  -webkit-appearance:none;width:100%;height:4px;
+  border-radius:2px;outline:none;cursor:pointer;margin-bottom:6px;
+}
+.km-track::-webkit-slider-thumb{
+  -webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  background:var(--blue);border:3px solid #fff;
+  box-shadow:0 2px 8px rgba(26,79,214,0.35),0 0 0 2px var(--blue-ring);
+  cursor:pointer;
+}
+.km-limits{display:flex;justify-content:space-between;font-size:11px;color:var(--mist);}
+.km-manual{
+  width:100%;height:54px;background:var(--blue-pale);
+  border:2px solid rgba(26,79,214,0.3);border-radius:12px;color:var(--blue);
+  font-family:'Montserrat',sans-serif;font-size:28px;font-weight:800;
+  text-align:center;outline:none;
+}
+
+/* ── SUMMARY ── */
+.sim-summary{padding:20px 16px;background:var(--frost);}
+.sum-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mist);margin-bottom:18px;}
+
+.price-rows{margin-bottom:16px;}
+.price-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.price-row:last-child{border-bottom:none;}
+.pr-l{color:var(--smoke);}
+.pr-v{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;}
+
+/* BIG TOTAL */
+.total-block{
+  background:var(--white);border:2px solid var(--border);
+  border-radius:18px;padding:18px 20px;margin-bottom:14px;
+  position:relative;overflow:hidden;
+}
+.total-block::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),#60a5fa);}
+.total-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--mist);margin-bottom:8px;}
+.total-main{display:flex;align-items:baseline;line-height:1;}
+.total-eur{font-size:22px;font-weight:700;color:var(--smoke);margin-right:2px;align-self:flex-start;margin-top:6px;}
+.total-int{font-size:64px;font-weight:800;letter-spacing:-3px;color:var(--ink);}
+.total-dec{font-size:24px;font-weight:600;color:var(--smoke);align-self:flex-end;margin-bottom:6px;}
+.total-note{font-size:11px;color:var(--mist);margin-top:6px;}
+
+/* SPLIT */
+.split-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.split-card{border-radius:14px;padding:16px 14px;}
+.split-now{background:var(--blue-pale);border:1.5px solid rgba(26,79,214,0.2);}
+.split-later{background:var(--green-pale);border:1.5px solid rgba(5,150,105,0.2);}
+.split-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.split-now .split-tag{color:var(--blue);}
+.split-later .split-tag{color:var(--green);}
+.split-amount{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1;margin-bottom:6px;}
+.split-now .split-amount{color:var(--blue);}
+.split-later .split-amount{color:var(--green);}
+.split-pct{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:4px;}
+.split-now .split-pct{background:rgba(26,79,214,0.12);color:var(--blue);}
+.split-later .split-pct{background:rgba(5,150,105,0.12);color:var(--green);}
+.split-method{font-size:10px;color:var(--smoke);}
+
+/* CTA */
+.sim-cta{
+  width:100%;height:56px;background:var(--blue);border:none;border-radius:14px;
+  font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;color:#fff;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
+  transition:all .2s;box-shadow:0 4px 16px rgba(26,79,214,0.25);
+  -webkit-tap-highlight-color:transparent;
+}
+.sim-cta:active{transform:scale(0.98);}
+.sim-cta:disabled{opacity:.55;cursor:not-allowed;}
+.sim-secure{text-align:center;font-size:11px;color:var(--mist);margin-top:10px;line-height:1.5;}
+.success-panel{display:none;text-align:center;padding:20px 0;animation:fu .35s ease;}
+.success-panel.show{display:block;}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── STATS ── */
+.stats-row{
+  display:grid;grid-template-columns:1fr;
+  margin-top:24px;background:var(--white);
+  border:1px solid var(--border);border-radius:18px;overflow:hidden;
+  box-shadow:var(--shadow-sm);
+}
+.stat-block{padding:20px 24px;border-bottom:1px solid var(--border);}
+.stat-block:last-child{border-bottom:none;}
+.stat-val{font-size:36px;font-weight:800;letter-spacing:-1.5px;line-height:1;color:var(--ink);margin-bottom:4px;}
+.stat-val em{font-style:normal;color:var(--blue);}
+.stat-lbl{font-size:13px;color:var(--smoke);}
+
+/* ── STRIP ── */
+.strip{background:var(--blue);padding:12px 16px;overflow-x:auto;}
+.strip-inner{display:flex;align-items:center;gap:16px;white-space:nowrap;justify-content:flex-start;min-width:max-content;margin:0 auto;}
+.strip-item{font-size:12px;color:rgba(255,255,255,0.9);font-weight:500;}
+.sdot{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,0.4);flex-shrink:0;}
+
+/* ── SECTIONS ── */
+.section{padding:56px 16px;}
+.section-light{background:var(--white);}
+.section-tinted{background:linear-gradient(135deg,var(--blue-pale) 0%,#f0f4ff 100%);}
+.container{max-width:980px;margin:0 auto;}
+.section-eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--blue);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.section-eyebrow::after{content:'';height:1px;width:20px;background:rgba(26,79,214,0.3);display:inline-block;}
+.section-h{font-size:24px;font-weight:800;letter-spacing:-0.8px;line-height:1.1;color:var(--ink);margin-bottom:10px;}
+.section-p{font-size:14px;color:var(--smoke);line-height:1.7;}
+
+/* HOW */
+.steps-grid{display:flex;flex-direction:column;gap:12px;margin-top:32px;}
+.step-card{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:18px;padding:22px 18px;transition:all .22s;
+  position:relative;overflow:hidden;
+}
+.step-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--blue);transform:scaleX(0);transform-origin:left;transition:transform .25s;}
+.step-card:hover::after{transform:scaleX(1);}
+.step-num{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mist);margin-bottom:12px;}
+.step-icon{font-size:28px;margin-bottom:10px;}
+.step-h{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:7px;}
+.step-p{font-size:13px;color:var(--smoke);line-height:1.7;}
+
+/* SERVICES */
+.svc-grid{display:flex;flex-direction:column;gap:12px;margin-top:32px;}
+.svc-card{
+  background:var(--white);border:1.5px solid var(--border);
+  border-radius:18px;padding:22px 18px;transition:all .22s;
+  position:relative;overflow:hidden;
+}
+.svc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),#60a5fa);transform:scaleX(0);transform-origin:left;transition:transform .3s;}
+.svc-card:hover::before{transform:scaleX(1);}
+.svc-ico{font-size:28px;margin-bottom:10px;}
+.svc-name{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.svc-desc{font-size:13px;color:var(--smoke);line-height:1.7;margin-bottom:12px;}
+.svc-price{font-size:12px;font-weight:700;color:var(--blue);background:var(--blue-pale);border:1px solid rgba(26,79,214,0.2);border-radius:50px;padding:4px 12px;display:inline-block;}
+
+/* OPERATORS */
+.op-grid{display:flex;flex-direction:column;gap:32px;}
+.op-points{display:flex;flex-direction:column;gap:20px;margin-top:24px;}
+.op-pt{display:flex;gap:12px;align-items:flex-start;}
+.op-icon{width:40px;height:40px;border-radius:11px;flex-shrink:0;background:var(--blue-pale);border:1px solid rgba(26,79,214,0.18);display:flex;align-items:center;justify-content:center;font-size:17px;margin-top:2px;}
+.op-h{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px;}
+.op-p{font-size:13px;color:var(--smoke);line-height:1.7;}
+
+/* WA */
+.wa-card{background:var(--white);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.09);}
+.wa-hdr{background:#075E54;padding:13px 16px;display:flex;align-items:center;gap:10px;}
+.wa-av{width:34px;height:34px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.wa-nm{font-size:13px;font-weight:700;color:#fff;}
+.wa-st{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px;}
+.wa-body{background:#e5ddd5;padding:16px 12px;display:flex;flex-direction:column;gap:8px;}
+.wa-bubble{background:#fff;border-radius:3px 12px 12px 12px;padding:12px 14px;max-width:95%;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.wa-bubble p{font-size:12px;color:#111;line-height:1.8;}
+.wa-bubble strong{color:#075E54;}
+.wa-time{font-size:10px;color:#aaa;text-align:right;margin-top:5px;}
+.wa-reply{background:#dcf8c6;border-radius:12px 3px 12px 12px;padding:10px 14px;max-width:55%;align-self:flex-end;font-size:13px;font-weight:700;color:#222;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+
+/* JOIN */
+.join-card{background:var(--white);border:1px solid var(--border);border-radius:22px;padding:22px 18px;box-shadow:var(--shadow);margin-top:32px;}
+.join-h{font-size:18px;font-weight:800;letter-spacing:-0.4px;margin-bottom:20px;}
+.join-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:16px;}
+.green-btn{
+  width:100%;height:54px;background:var(--green);border:none;border-radius:12px;
+  font-family:'Montserrat',sans-serif;font-size:15px;font-weight:700;color:#fff;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .2s;box-shadow:0 4px 16px rgba(5,150,105,0.25);
+  -webkit-tap-highlight-color:transparent;
+}
+.green-btn:active{transform:scale(0.98);}
+.green-btn:disabled{opacity:.55;cursor:not-allowed;}
+.op-success{display:none;text-align:center;padding:20px 0;}
+.op-success.show{display:block;animation:fu .35s ease;}
+
+/* FUEL */
+.fuel-grid{display:flex;flex-direction:column;gap:12px;margin-top:32px;}
+.fuel-card{background:var(--white);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm);}
+.fuel-top{padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--frost);}
+.fuel-badge{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0;}
+.bg-galp{background:#e05200;color:#fff;}
+.bg-bp{background:#005a28;color:#fff;}
+.bg-repsol{background:#c8a900;color:#111;}
+.fuel-brand{font-size:14px;font-weight:700;color:var(--ink);}
+.fuel-loc{font-size:11px;color:var(--mist);margin-top:1px;}
+.fuel-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #f3f4f6;}
+.fuel-row:last-child{border-bottom:none;}
+.fuel-type{font-size:13px;color:var(--smoke);}
+.fuel-price{font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+.fuel-price.low{color:var(--green);}
+.fuel-price.high{color:#dc2626;}
+.fuel-min{font-size:9px;background:var(--green-pale);color:var(--green);border-radius:20px;padding:1px 6px;margin-left:4px;font-weight:700;}
+
+.fuel-sim{margin-top:16px;background:var(--white);border:1px solid var(--border);border-radius:18px;padding:22px 18px;box-shadow:var(--shadow-sm);}
+.fuel-sim-h{font-size:17px;font-weight:800;letter-spacing:-0.3px;margin-bottom:4px;}
+.fuel-sim-p{font-size:13px;color:var(--smoke);margin-bottom:20px;}
+.fuel-sim-fields{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;}
+.fuel-results{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.fuel-res{background:var(--frost);border:1px solid var(--border);border-radius:11px;padding:12px;text-align:center;}
+.fuel-res.best{background:var(--green-pale);border-color:rgba(5,150,105,0.25);}
+.fuel-res-brand{font-size:10px;font-weight:700;color:var(--mist);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.fuel-res.best .fuel-res-brand{color:var(--green);}
+.fuel-res-val{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-0.5px;}
+.fuel-res.best .fuel-res-val{color:var(--green);}
+.fuel-breakdown{background:var(--frost);border:1px solid var(--border);border-radius:11px;padding:16px;}
+.fb-row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);}
+.fb-row:last-child{border-bottom:none;font-weight:700;padding-top:10px;}
+.fb-l{color:var(--smoke);}
+.fb-v{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600;}
+.fb-note{font-size:11px;color:var(--mist);margin-top:8px;}
+
+/* FOOTER */
+footer{background:var(--ink);padding:48px 16px 28px;}
+.footer-inner{max-width:980px;margin:0 auto;}
+.footer-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:36px;}
+.footer-logo-text{font-size:15px;font-weight:800;color:#fff;}
+.footer-logo-text span{color:#60a5fa;}
+.footer-desc{font-size:12px;color:#6b7280;line-height:1.75;margin-top:10px;}
+.footer-col h5{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#4b5563;margin-bottom:12px;}
+.footer-col ul{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.footer-col a{font-size:13px;color:#6b7280;text-decoration:none;transition:color .15s;}
+.footer-col a:hover{color:#fff;}
+.footer-bottom{border-top:1px solid #1f2937;padding-top:18px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#374151;text-align:center;}
+.footer-brand-col{grid-column:1/-1;}
+
+/* MISC */
+.divider{height:1px;background:var(--border);}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--ink);color:#fff;padding:11px 22px;border-radius:50px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── TABLET (≥600px) ── */
+@media(min-width:600px){
+  nav{padding:0 24px;}
+  h1.hero-h{font-size:40px;}
+  .sim-hero{padding:80px 24px 56px;}
+  .sim-inputs{padding:28px 24px;}
+  .sim-summary{padding:28px 24px;}
+  .svc-row{grid-template-columns:repeat(4,1fr);}
+  .f2{grid-template-columns:1fr 1fr;}
+  .stats-row{grid-template-columns:repeat(3,1fr);}
+  .stat-block{border-bottom:none;border-right:1px solid var(--border);}
+  .stat-block:last-child{border-right:none;}
+  .steps-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .svc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .fuel-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .fuel-results{grid-template-columns:repeat(4,1fr);}
+  .fuel-sim-fields{display:grid;grid-template-columns:1fr 1fr;}
+  .join-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .op-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;}
+  .footer-grid{grid-template-columns:1fr 1fr 1fr;}
+  .footer-brand-col{grid-column:auto;}
+  .section{padding:72px 24px;}
+  .section-h{font-size:32px;}
+  .strip-inner{justify-content:center;}
+  .sdot{display:block;}
+}
+
+/* ── DESKTOP (≥900px) ── */
+@media(min-width:900px){
+  nav{padding:0 40px;}
+  .hamburger{display:none !important;}
+  .nav-desktop{display:flex !important;gap:28px;list-style:none;}
+  .nav-desktop a{font-size:13px;color:var(--smoke);text-decoration:none;font-weight:500;transition:color .15s;}
+  .nav-desktop a:hover{color:var(--ink);}
+  .nav-cta-desktop{display:block !important;height:34px;padding:0 18px;background:var(--blue);border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:#fff;cursor:pointer;transition:all .18s;}
+  .nav-cta-desktop:hover{background:var(--blue-d);}
+  h1.hero-h{font-size:56px;letter-spacing:-2px;}
+  .hero-sub{font-size:16px;max-width:460px;}
+  .sim-hero{padding:96px 40px 72px;align-items:center;}
+  .sim-body{display:grid;grid-template-columns:1fr 1fr;flex-direction:row;}
+  .sim-inputs{border-bottom:none;border-right:1px solid var(--border);padding:36px 32px;}
+  .sim-summary{padding:36px 32px;}
+  .steps-grid{grid-template-columns:repeat(3,1fr);}
+  .svc-grid{grid-template-columns:repeat(2,1fr);}
+  .fuel-grid{grid-template-columns:repeat(3,1fr);}
+  .op-grid{gap:72px;align-items:center;}
+  .footer-grid{grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;}
+  .footer-bottom{flex-direction:row;justify-content:space-between;text-align:left;}
+  .section{padding:88px 40px;}
+  .section-h{font-size:40px;}
+  .total-int{font-size:72px;}
+  .stat-val{font-size:40px;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 16 16"><path d="M2 8h12M8 2v12M2 5l6-3 6 3"/></svg></div>
+    <div class="logo-text">Cargo<span>Link</span></div>
+  </a>
+  <ul class="nav-desktop">
+    <li><a href="#how">Como funciona</a></li>
+    <li><a href="#services">Serviços</a></li>
+    <li><a href="#fuel">Combustível</a></li>
+    <li><a href="#operators">Operadores</a></li>
+  </ul>
+  <button class="nav-cta-desktop" onclick="document.getElementById('request').scrollIntoView({behavior:'smooth'})">Solicitar transporte</button>
+  <button class="hamburger" id="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mob-menu" id="mob-menu">
+  <a href="#how" onclick="closeMenu()">Como funciona</a>
+  <a href="#services" onclick="closeMenu()">Serviços</a>
+  <a href="#fuel" onclick="closeMenu()">⛽ Combustível</a>
+  <a href="#operators" onclick="closeMenu()">Operadores</a>
+  <button class="mob-cta-btn" onclick="closeMenu();document.getElementById('request').scrollIntoView({behavior:'smooth'})">Solicitar transporte</button>
+</div>
+
+<!-- ══ HERO SIMULATOR ══ -->
+<section class="sim-hero" id="request">
+  <div class="sim-hero-inner">
+    <div class="sim-eyebrow"><span class="eyedot"></span> Simulador de transporte</div>
+    <h1 class="hero-h">Calcula o teu preço<br><span class="accent">em segundos.</span></h1>
+    <p class="hero-sub">Sem surpresas, sem taxas ocultas. Vês o total, o que pagas agora e o que pagas na entrega — tudo antes de confirmar.</p>
+
+    <div class="sim-card">
+      <div class="sim-card-bar">
+        <div class="bar-dots"><span></span><span></span><span></span></div>
+        <div class="bar-title">CargoLink · Simulador</div>
+        <div class="bar-live">Sistema ativo</div>
+      </div>
+      <div class="sim-body">
+
+        <!-- INPUTS -->
+        <div class="sim-inputs">
+          <div>
+            <label class="fl">Tipo de serviço</label>
+            <div class="svc-row">
+              <div class="svc-chip active" data-svc="mudanca" onclick="selSvc(this)"><div class="svc-chip-icon">🏠</div><div class="svc-chip-name">Mudança</div></div>
+              <div class="svc-chip" data-svc="mercadoria" onclick="selSvc(this)"><div class="svc-chip-icon">📦</div><div class="svc-chip-name">Mercadorias</div></div>
+              <div class="svc-chip" data-svc="entrega" onclick="selSvc(this)"><div class="svc-chip-icon">🚚</div><div class="svc-chip-name">Entrega</div></div>
+              <div class="svc-chip" data-svc="longa" onclick="selSvc(this)"><div class="svc-chip-icon">🛣️</div><div class="svc-chip-name">Longa dist.</div></div>
+            </div>
+          </div>
+
+          <div>
+            <label class="fl">Distância estimada</label>
+            <div class="km-big"><span id="km-val">15</span><span>km</span></div>
+            <div id="km-slider-wrap">
+              <input type="range" class="km-track" id="km-sl" min="1" max="200" value="15" oninput="onSl(this.value)">
+              <div class="km-limits"><span>1 km</span><span>200 km</span></div>
+            </div>
+            <div id="km-manual-wrap" style="display:none;margin-top:8px;">
+              <input type="number" class="km-manual" id="km-man" value="350" min="1" oninput="onMan(this.value)">
+            </div>
+          </div>
+
+          <div class="f2">
+            <div><label class="fl">Nome</label><input class="fi" id="c-nome" type="text" placeholder="Ana Costa"></div>
+            <div><label class="fl">Telemóvel</label><input class="fi" id="c-tel" type="tel" placeholder="+351 9XX XXX XXX"></div>
+          </div>
+
+          <div><label class="fl">Origem</label><input class="fi" id="c-orig" type="text" placeholder="Rua, nº, cidade"></div>
+          <div><label class="fl">Destino</label><input class="fi" id="c-dest" type="text" placeholder="Rua, nº, cidade"></div>
+
+          <div class="f2">
+            <div>
+              <label class="fl">Peso estimado</label>
+              <select class="fi" id="c-peso">
+                <option value="">Seleciona</option>
+                <option>Até 50 kg</option>
+                <option>50–200 kg</option>
+                <option>200–500 kg</option>
+                <option>+ de 500 kg</option>
+              </select>
+            </div>
+            <div><label class="fl">Data de levantamento</label><input class="fi" id="c-pd" type="date"></div>
+          </div>
+
+          <div><label class="fl">Descrição</label><textarea class="fi" id="c-desc" placeholder="Sofá, caixas, frigorífico..."></textarea></div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="sim-summary">
+          <div class="sum-title">Resumo do preço</div>
+          <div class="price-rows">
+            <div class="price-row"><span class="pr-l">Serviço base (<span id="bd-svc">Mudança</span>)</span><span class="pr-v" id="bd-base">€80,00</span></div>
+            <div class="price-row"><span class="pr-l"><span id="bd-km">15</span> km × €<span id="bd-rate">1,20</span>/km</span><span class="pr-v" id="bd-kv">€18,00</span></div>
+          </div>
+
+          <div class="total-block">
+            <div class="total-label">Total estimado</div>
+            <div class="total-main">
+              <span class="total-eur">€</span>
+              <span class="total-int" id="bd-int">98</span>
+              <span class="total-dec" id="bd-dec">,00</span>
+            </div>
+            <div class="total-note">Preço final · IVA incluído · Sem taxas extra</div>
+          </div>
+
+          <div class="split-pair">
+            <div class="split-card split-now">
+              <div class="split-tag">Pagas agora</div>
+              <div class="split-amount" id="dep-val">€14,70</div>
+              <div class="split-pct">15% do total</div>
+              <div class="split-method">via Stripe · cartão</div>
+            </div>
+            <div class="split-card split-later">
+              <div class="split-tag">Pagas na entrega</div>
+              <div class="split-amount" id="cash-val">€83,30</div>
+              <div class="split-pct">85% do total</div>
+              <div class="split-method">em dinheiro · ao operador</div>
+            </div>
+          </div>
+
+          <button class="sim-cta" id="sim-cta-btn" onclick="submitC()">
+            <span>💳</span><span>Solicitar transporte</span>
+          </button>
+          <div class="sim-secure">🔒 O depósito de 15% só é cobrado<br>após confirmação de operador</div>
+          <div class="success-panel" id="c-ok">
+            <div style="font-size:36px;margin-bottom:10px;">✅</div>
+            <div style="font-size:17px;font-weight:800;margin-bottom:6px;">Pedido enviado!</div>
+            <div style="font-size:13px;color:var(--smoke);line-height:1.65;">A notificar operadores disponíveis. Serás contactado assim que um confirmar.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-block"><div class="stat-val"><span id="s-op">0</span><em>+</em></div><div class="stat-lbl">Operadores ativos na rede</div></div>
+      <div class="stat-block"><div class="stat-val"><span id="s-del">0</span><em>+</em></div><div class="stat-lbl">Entregas realizadas</div></div>
+      <div class="stat-block"><div class="stat-val"><span id="s-rat">0</span><em>★</em></div><div class="stat-lbl">Avaliação média dos clientes</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-inner">
+    <div class="strip-item">🇵🇹 Entregas nacionais</div><div class="sdot"></div>
+    <div class="strip-item">🌍 Entregas internacionais</div><div class="sdot"></div>
+    <div class="strip-item">✔ Operadores verificados</div><div class="sdot"></div>
+    <div class="strip-item">⚡ Resposta em minutos</div><div class="sdot"></div>
+    <div class="strip-item">🔒 Pagamento seguro Stripe</div>
+  </div>
+</div>
+
+<!-- HOW -->
+<section class="section section-light" id="how">
+  <div class="container">
+    <div class="section-eyebrow">Para clientes</div>
+    <div class="section-h">Simples como deve ser.</div>
+    <div class="section-p">Solicita online, nós tratamos do resto. Três passos e está feito.</div>
+    <div class="steps-grid">
+      <div class="step-card"><div class="step-num">Passo 01</div><div class="step-icon">📋</div><div class="step-h">Solicite o transporte</div><div class="step-p">Preenches origem, destino, tipo e peso. O preço aparece imediatamente com base nos quilómetros.</div></div>
+      <div class="step-card"><div class="step-num">Passo 02</div><div class="step-icon">🔗</div><div class="step-h">Conectamos ao operador certo</div><div class="step-p">Notificamos os melhores operadores via WhatsApp. O depósito de 15% só é cobrado após confirmação.</div></div>
+      <div class="step-card"><div class="step-num">Passo 03</div><div class="step-icon">✔</div><div class="step-h">Receba com confiança</div><div class="step-p">O operador realiza o serviço. Pagas os restantes 85% em dinheiro no dia, diretamente ao operador.</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SERVICES -->
+<section class="section" id="services">
+  <div class="container">
+    <div class="section-eyebrow">Serviços</div>
+    <div class="section-h">O que transportamos.</div>
+    <div class="section-p">Do pequeno pacote à mudança completa — cobrimos todo o território nacional e europeu.</div>
+    <div class="svc-grid">
+      <div class="svc-card"><div class="svc-ico">🏠</div><div class="svc-name">Mudança Residencial</div><div class="svc-desc">Mudança de casa completa com equipa experiente. Desmontagem, transporte e montagem incluída.</div><div class="svc-price">A partir de €80 + km</div></div>
+      <div class="svc-card"><div class="svc-ico">📦</div><div class="svc-name">Transporte de Mercadorias</div><div class="svc-desc">Paletes, mobiliário ou equipamento industrial. Soluções para empresas e particulares.</div><div class="svc-price">A partir de €50 + km</div></div>
+      <div class="svc-card"><div class="svc-ico">🚚</div><div class="svc-name">Entrega de Encomenda</div><div class="svc-desc">Entrega rápida de pacotes e objetos de valor. Segurança garantida do ponto A ao ponto B.</div><div class="svc-price">A partir de €25 + km</div></div>
+      <div class="svc-card"><div class="svc-ico">🛣️</div><div class="svc-name">Longa Distância</div><div class="svc-desc">Toda a Europa, sem limite de quilómetros. Operadores experientes em rotas internacionais.</div><div class="svc-price">A partir de €120 + km</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- OPERATORS -->
+<section class="section section-tinted" id="operators">
+  <div class="container">
+    <div class="op-grid">
+      <div>
+        <div class="section-eyebrow">Para operadores</div>
+        <div class="section-h">Junte-se à rede CargoLink.</div>
+        <div class="section-p">Flexibilidade total. Escolhe os serviços, trabalha quando queres.</div>
+        <div class="op-points">
+          <div class="op-pt"><div class="op-icon">📲</div><div><div class="op-h">Recebe pedidos por WhatsApp</div><div class="op-p">Mensagem com todos os detalhes — sem app. Aceitas só o que queres.</div></div></div>
+          <div class="op-pt"><div class="op-icon">💵</div><div><div class="op-h">Ganhos reais — 85% do valor</div><div class="op-p">O cliente paga-te diretamente no dia. A plataforma retém apenas 15% como comissão.</div></div></div>
+          <div class="op-pt"><div class="op-icon">🤝</div><div><div class="op-h">Suporte humano da plataforma</div><div class="op-p">A equipa CargoLink otimiza e encaminha os trabalhos para melhores oportunidades.</div></div></div>
+        </div>
+      </div>
+      <div class="wa-card">
+        <div class="wa-hdr"><div class="wa-av">🔗</div><div><div class="wa-nm">CargoLink</div><div class="wa-st">online agora</div></div></div>
+        <div class="wa-body">
+          <div class="wa-bubble"><p>🔗 <strong>CARGOLINK — Novo Pedido</strong><br><br>📦 <strong>Serviço:</strong> Mudança Residencial<br>👤 <strong>Cliente:</strong> Ana Costa · +351 912 345 678<br>📍 <strong>Origem:</strong> Rua Augusta 45, Lisboa<br>🏁 <strong>Destino:</strong> Av. da República, Lisboa<br>📏 <strong>Distância:</strong> 15 km<br>💵 <strong>A receber:</strong> €83,30 (85%)<br><br>✅ Responde <strong>SIM</strong> se disponível.</p><div class="wa-time">14:23 ✓✓</div></div>
+          <div class="wa-reply">SIM ✅<div style="font-size:10px;color:#666;margin-top:2px;text-align:right;">14:24 ✓✓</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="join-card">
+      <div class="join-h">Quero fazer parte da rede 🚛</div>
+      <div class="join-grid">
+        <div><label class="fl">Nome completo</label><input class="fi" id="o-nome" type="text" placeholder="João Mendes"></div>
+        <div><label class="fl">WhatsApp</label><input class="fi" id="o-wa" type="tel" placeholder="+351 9XX XXX XXX"></div>
+        <div><label class="fl">Zona de trabalho</label><input class="fi" id="o-zona" type="text" placeholder="Lisboa, Porto..."></div>
+        <div><label class="fl">Tipo de veículo</label><select class="fi" id="o-veiculo"><option value="">Seleciona</option><option>🚗 Carro (até 50 kg)</option><option>🚐 Carrinha (até 200 kg)</option><option>🚚 Furgão (até 500 kg)</option><option>🚛 Camião (mais de 500 kg)</option></select></div>
+        <div><label class="fl">Matrícula</label><input class="fi" id="o-mat" type="text" placeholder="AA-12-BC"></div>
+      </div>
+      <button class="green-btn" id="op-btn" onclick="submitO()"><span>✔</span> Juntar-me à rede CargoLink</button>
+      <div class="op-success" id="o-ok">
+        <div style="font-size:32px;margin-bottom:10px;">🎉</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:6px;">Bem-vindo à rede!</div>
+        <div style="font-size:13px;color:var(--smoke);">Vais começar a receber pedidos por WhatsApp em breve.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- FUEL -->
+<section class="section section-light" id="fuel">
+  <div class="container">
+    <div class="section-eyebrow">⛽ Combustível</div>
+    <div class="section-h">Preços & Simulador.</div>
+    <div class="section-p">Preços nas bombas do Aeroporto de Lisboa.</div>
+    <div style="font-size:12px;color:var(--mist);margin-top:8px;">Atualizado: <strong style="color:var(--smoke)">28/03/2026</strong> · <a href="https://www.maisgasolina.com" target="_blank" style="color:var(--blue);text-decoration:none;font-weight:600;">maisgasolina.com ↗</a></div>
+    <div class="fuel-grid">
+      <div class="fuel-card">
+        <div class="fuel-top"><div class="fuel-badge bg-galp">G</div><div><div class="fuel-brand">Galp</div><div class="fuel-loc">A.S. Aeroporto N/S</div></div></div>
+        <div class="fuel-row"><span class="fuel-type">Gasolina 95</span><span class="fuel-price" id="f-galp-95">€2,037</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasolina 98+</span><span class="fuel-price" id="f-galp-98">€2,247</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasóleo</span><span class="fuel-price" id="f-galp-g">€2,196</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasóleo +</span><span class="fuel-price" id="f-galp-gp">€2,256</span></div>
+        <div class="fuel-row"><span class="fuel-type">GPL Auto</span><span class="fuel-price" id="f-galp-gpl">€0,939</span></div>
+      </div>
+      <div class="fuel-card">
+        <div class="fuel-top"><div class="fuel-badge bg-bp">BP</div><div><div class="fuel-brand">BP</div><div class="fuel-loc">Aeroporto</div></div></div>
+        <div class="fuel-row"><span class="fuel-type">Gasolina 95</span><span class="fuel-price" id="f-bp-95">€2,049</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasolina 98+</span><span class="fuel-price" id="f-bp-98">€2,239</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasóleo</span><span class="fuel-price" id="f-bp-g">€2,224</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasóleo +</span><span class="fuel-price" id="f-bp-gp">€2,344</span></div>
+        <div class="fuel-row"><span class="fuel-type">GPL Auto</span><span class="fuel-price" id="f-bp-gpl">€0,999</span></div>
+      </div>
+      <div class="fuel-card">
+        <div class="fuel-top"><div class="fuel-badge bg-repsol">R</div><div><div class="fuel-brand">Repsol</div><div class="fuel-loc">E.S. Aeroporto N/S</div></div></div>
+        <div class="fuel-row"><span class="fuel-type">Gasolina 95</span><span class="fuel-price" id="f-repsol-95">€2,029</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasolina 98+</span><span class="fuel-price" id="f-repsol-98">€2,229</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasóleo</span><span class="fuel-price" id="f-repsol-g">€2,189</span></div>
+        <div class="fuel-row"><span class="fuel-type">Gasóleo +</span><span class="fuel-price" id="f-repsol-gp">€2,259</span></div>
+        <div class="fuel-row"><span class="fuel-type">GPL Auto</span><span class="fuel-price" id="f-repsol-gpl">€0,954</span></div>
+      </div>
+    </div>
+    <div class="fuel-sim">
+      <div class="fuel-sim-h">🧮 Simulador de custo de combustível</div>
+      <div class="fuel-sim-p">Calcula o custo real de combustível para a tua entrega.</div>
+      <div class="fuel-sim-fields">
+        <div><label class="fl">Distância (km)</label><input type="number" class="fi" id="fsim-km" value="50" min="1" oninput="calcFuel()"></div>
+        <div><label class="fl">Combustível</label><select class="fi" id="fsim-fuel" onchange="calcFuel()"><option value="g">Gasóleo</option><option value="gp">Gasóleo +</option><option value="95">Gasolina 95</option><option value="98">Gasolina 98+</option><option value="gpl">GPL Auto</option></select></div>
+        <div><label class="fl">Veículo</label><select class="fi" id="fsim-L" onchange="calcFuel()"><option value="8">Carro — 8 L/100km</option><option value="10">Carrinha — 10 L/100km</option><option value="13" selected>Furgão — 13 L/100km</option><option value="18">Camião — 18 L/100km</option></select></div>
+      </div>
+      <div class="fuel-results">
+        <div class="fuel-res"><div class="fuel-res-brand">Galp</div><div class="fuel-res-val" id="fs-galp">—</div></div>
+        <div class="fuel-res"><div class="fuel-res-brand">BP</div><div class="fuel-res-val" id="fs-bp">—</div></div>
+        <div class="fuel-res"><div class="fuel-res-brand">Repsol</div><div class="fuel-res-val" id="fs-repsol">—</div></div>
+        <div class="fuel-res best"><div class="fuel-res-brand" id="fs-cheap-brand">Mais barato</div><div class="fuel-res-val" id="fs-cheap-val">—</div></div>
+      </div>
+      <div class="fuel-breakdown">
+        <div class="fb-row"><span class="fb-l">Distância total</span><span class="fb-v" id="fsb-km">—</span></div>
+        <div class="fb-row"><span class="fb-l">Consumo estimado</span><span class="fb-v" id="fsb-L">—</span></div>
+        <div class="fb-row"><span class="fb-l">Preço/litro (mais barato)</span><span class="fb-v" id="fsb-ppl">—</span></div>
+        <div class="fb-row"><span class="fb-l">Custo combustível (ida)</span><span class="fb-v" id="fsb-one">—</span></div>
+        <div class="fb-row"><span class="fb-l">Custo combustível (ida + volta)</span><span class="fb-v" id="fsb-rt">—</span></div>
+        <div class="fb-row"><span class="fb-l">💡 Valor sugerido a cobrar</span><span class="fb-v" id="fsb-sug">—</span></div>
+      </div>
+      <div class="fb-note">* Valor sugerido = combustível ida + volta + 25% de margem.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand-col">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="logo-mark"><svg viewBox="0 0 16 16" style="width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><path d="M2 8h12M8 2v12M2 5l6-3 6 3"/></svg></div>
+          <div class="footer-logo-text">Cargo<span>Link</span></div>
+        </div>
+        <div class="footer-desc">Marketplace de transportes e mudanças. Liga clientes a operadores verificados — nacional e internacional.</div>
+      </div>
+      <div class="footer-col"><h5>Serviços</h5><ul><li><a href="#services">Mudança Residencial</a></li><li><a href="#services">Transporte de Mercadorias</a></li><li><a href="#services">Entrega de Encomenda</a></li><li><a href="#services">Longa Distância</a></li></ul></div>
+      <div class="footer-col"><h5>Empresa</h5><ul><li><a href="#how">Como funciona</a></li><li><a href="#operators">Para operadores</a></li><li><a href="#request">Fazer pedido</a></li><li><a href="#">Contacto</a></li></ul></div>
+      <div class="footer-col"><h5>Legal</h5><ul><li><a href="#">Termos de serviço</a></li><li><a href="#">Política de privacidade</a></li><li><a href="#">Cookies</a></li><li><a href="#">RGPD</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 CargoLink. Todos os direitos reservados.</span>
+      <span>🌍 Nacional & Internacional</span>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast-el"></div>
+
+<script>
+const PR={mudanca:{b:80,k:1.20},mercadoria:{b:50,k:0.90},entrega:{b:25,k:0.60},longa:{b:120,k:0.80}};
+const SVC_NAMES={mudanca:'Mudança',mercadoria:'Mercadorias',entrega:'Entrega',longa:'Longa dist.'};
+const WA='351965349393';
+let svc='mudanca',km=15;
+const g=id=>document.getElementById(id);
+const fmt=v=>v.toFixed(2).replace('.',',');
+
+function updPrice(){
+  const p=PR[svc],tot=p.b+km*p.k,dep=tot*.15,cash=tot*.85;
+  const parts=tot.toFixed(2).split('.');
+  g('bd-svc').textContent=SVC_NAMES[svc];
+  g('bd-base').textContent='€'+fmt(p.b);
+  g('bd-km').textContent=km;
+  g('bd-rate').textContent=p.k.toFixed(2).replace('.',',');
+  g('bd-kv').textContent='€'+fmt(km*p.k);
+  g('bd-int').textContent=parts[0];
+  g('bd-dec').textContent=','+parts[1];
+  g('dep-val').textContent='€'+fmt(dep);
+  g('cash-val').textContent='€'+fmt(cash);
+}
+
+function selSvc(el){
+  document.querySelectorAll('.svc-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');svc=el.dataset.svc;
+  const isL=svc==='longa';
+  g('km-slider-wrap').style.display=isL?'none':'block';
+  g('km-manual-wrap').style.display=isL?'block':'none';
+  km=isL?(parseInt(g('km-man').value)||350):(parseInt(g('km-sl').value)||15);
+  g('km-val').textContent=km;updPrice();
+}
+function onSl(v){km=parseInt(v);g('km-val').textContent=km;fillSlider();updPrice();}
+function onMan(v){km=Math.max(1,parseInt(v)||1);g('km-val').textContent=km;updPrice();}
+function fillSlider(){
+  const sl=g('km-sl');
+  const pct=((sl.value-sl.min)/(sl.max-sl.min))*100;
+  sl.style.background=`linear-gradient(to right,var(--blue) ${pct}%,var(--border) ${pct}%)`;
+}
+
+function submitC(){
+  const n=g('c-nome').value.trim(),tel=g('c-tel').value.trim(),
+        o=g('c-orig').value.trim(),d=g('c-dest').value.trim(),
+        peso=g('c-peso').value,pd=g('c-pd').value,
+        desc=g('c-desc').value.trim();
+  if(!n||!tel||!o||!d||!peso){toast('⚠ Preenche os campos obrigatórios');return;}
+  const btn=g('sim-cta-btn');
+  btn.innerHTML='<span class="spin"></span> A processar...';btn.disabled=true;
+  const p=PR[svc],tot=p.b+km*p.k,dep=fmt(tot*.15),cash=fmt(tot*.85);
+  const sname={mudanca:'Mudança Residencial',mercadoria:'Transporte de Mercadorias',entrega:'Entrega de Encomenda',longa:'Longa Distância'}[svc];
+  const fd=s=>{if(!s)return'—';const[y,m,dv]=s.split('-');return`${dv}/${m}/${y}`;};
+  const partes=['🔗 *CARGOLINK — Novo Pedido*','','📦 *Serviço:* '+sname,'👤 *Cliente:* '+n+' · '+tel,'📍 *Origem:* '+o,'🏁 *Destino:* '+d,'📏 *Distância:* '+km+' km','⚖️ *Peso:* '+peso,'📝 *Desc.:* '+(desc||'—'),'📅 *Levantamento:* '+fd(pd),'💵 *A receber:* €'+cash+' (85%)','💳 *Depósito pago:* €'+dep+' (15% Stripe)','','✅ Responde *SIM* se disponível.'];
+  const msg=partes.join('\n');
+  setTimeout(()=>{
+    window.open('https://wa.me/'+WA+'?text='+encodeURIComponent(msg),'_blank');
+    btn.style.display='none';g('c-ok').classList.add('show');toast('✅ Pedido enviado!');
+  },1600);
+}
+
+function submitO(){
+  const n=g('o-nome').value.trim(),wa=g('o-wa').value.trim(),
+        z=g('o-zona').value.trim(),v=g('o-veiculo').value,m=g('o-mat').value.trim();
+  if(!n||!wa||!z||!v||!m){toast('⚠ Preenche todos os campos');return;}
+  const btn=g('op-btn');
+  btn.innerHTML='<span class="spin"></span> A registar...';btn.disabled=true;
+  const partes=['🚛 *CARGOLINK — Novo Operador*','','👤 *Nome:* '+n,'📱 *WhatsApp:* '+wa,'📍 *Zona:* '+z,'🚗 *Veículo:* '+v,'🔖 *Matrícula:* '+m,'','✅ Novo operador registado!'];
+  const msg=partes.join('\n');
+  setTimeout(()=>{
+    window.open('https://wa.me/'+WA+'?text='+encodeURIComponent(msg),'_blank');
+    btn.style.display='none';g('o-ok').classList.add('show');toast('✅ Bem-vindo à rede!');
+  },1600);
+}
+
+/* Fuel */
+const FP={galp:{'95':2.037,'98':2.247,'g':2.196,'gp':2.256,'gpl':0.939},bp:{'95':2.049,'98':2.239,'g':2.224,'gp':2.344,'gpl':0.999},repsol:{'95':2.029,'98':2.229,'g':2.189,'gp':2.259,'gpl':0.954}};
+
+function highlightFuel(){
+  const map={galp:{'95':'f-galp-95','98':'f-galp-98','g':'f-galp-g','gp':'f-galp-gp','gpl':'f-galp-gpl'},bp:{'95':'f-bp-95','98':'f-bp-98','g':'f-bp-g','gp':'f-bp-gp','gpl':'f-bp-gpl'},repsol:{'95':'f-repsol-95','98':'f-repsol-98','g':'f-repsol-g','gp':'f-repsol-gp','gpl':'f-repsol-gpl'}};
+  ['95','98','g','gp','gpl'].forEach(t=>{
+    const brands=['galp','bp','repsol'],vals=brands.map(b=>FP[b][t]);
+    const min=Math.min(...vals),max=Math.max(...vals);
+    brands.forEach((b,i)=>{
+      const el=g(map[b][t]);if(!el)return;
+      el.className='fuel-price';const old=el.querySelector('.fuel-min');if(old)old.remove();
+      if(vals[i]===min){el.classList.add('low');const bk=document.createElement('span');bk.className='fuel-min';bk.textContent='mín';el.appendChild(bk);}
+      else if(vals[i]===max)el.classList.add('high');
+    });
+  });
+}
+
+function calcFuel(){
+  const kmV=parseFloat(g('fsim-km')?.value)||50,ft=g('fsim-fuel')?.value||'g',L100=parseFloat(g('fsim-L')?.value)||13;
+  const liters=(kmV/100)*L100;
+  const costs={galp:liters*FP.galp[ft],bp:liters*FP.bp[ft],repsol:liters*FP.repsol[ft]};
+  const cheapest=Object.keys(costs).reduce((a,b)=>costs[a]<costs[b]?a:b);
+  const cc=costs[cheapest],ppl=FP[cheapest][ft],ret=cc*2,sug=ret*1.25;
+  const s=(id,v)=>{const el=g(id);if(el)el.textContent=v;};
+  s('fs-galp','€'+fmt(costs.galp));s('fs-bp','€'+fmt(costs.bp));s('fs-repsol','€'+fmt(costs.repsol));
+  s('fs-cheap-val','€'+fmt(cc));s('fs-cheap-brand',cheapest.toUpperCase());
+  s('fsb-km',kmV+' km');s('fsb-L',liters.toFixed(1)+' L');
+  s('fsb-ppl','€'+ppl.toFixed(3).replace('.',',')+' ('+cheapest.toUpperCase()+')');
+  s('fsb-one','€'+fmt(cc));s('fsb-rt','€'+fmt(ret));s('fsb-sug','€'+fmt(sug));
+}
+
+/* Count up */
+function countUp(el,target,decimal=false){
+  const dur=1600,start=performance.now();
+  const step=now=>{
+    const p=Math.min((now-start)/dur,1),ease=1-Math.pow(1-p,3);
+    el.textContent=decimal?(Math.round(ease*target*10)/10).toFixed(1).replace('.',','):Math.round(ease*target);
+    if(p<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* Mobile menu */
+function toggleMenu(){
+  const h=g('hamburger'),m=g('mob-menu');
+  h.classList.toggle('open');m.classList.toggle('open');
+  document.body.style.overflow=m.classList.contains('open')?'hidden':'';
+}
+function closeMenu(){
+  g('hamburger').classList.remove('open');
+  g('mob-menu').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+let tt;
+function toast(msg){const t=g('toast-el');t.textContent=msg;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3200);}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  updPrice();highlightFuel();calcFuel();fillSlider();
+  const statsObs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{if(e.isIntersecting){countUp(g('s-op'),38);countUp(g('s-del'),500);countUp(g('s-rat'),4.9,true);statsObs.disconnect();}});
+  },{threshold:0.5});
+  const sr=document.querySelector('.stats-row');if(sr)statsObs.observe(sr);
+  g('km-sl').addEventListener('input',fillSlider);
+});
+</script>
+</body>
+</html>
